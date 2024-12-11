@@ -591,6 +591,11 @@
     "Issuer": "صادرکننده",
     "Secret Key": "کلید مخفی"
   },
+  "mfaAccount": {
+    "Account Name": "Account Name",
+    "Issuer": "Issuer",
+    "Secret Key": "Secret Key"
+  },
   "model": {
     "Edit Model": "ویرایش مدل",
     "Model text": "متن مدل",

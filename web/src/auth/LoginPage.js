@@ -242,7 +242,7 @@ class LoginPage extends React.Component {
       return "Password";
     }
   }
-
+  
   getPlaceholder(defaultPlaceholder = null) {
     if (defaultPlaceholder) {
       return defaultPlaceholder;

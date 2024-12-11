@@ -77,6 +77,42 @@ class MfaAccountTable extends React.Component {
     this.updateTable(table);
   }
 
+  getQrUrl() {
+    const {accessToken} = this.props;
+    let qrUrl = `casdoor-app://login?serverUrl=${window.location.origin}&accessToken=${accessToken}`;
+    let error = null;
+
+    if (!accessToken) {
+      qrUrl = "";
+      error = i18next.t("general:Access token is empty");
+    }
+
+    if (qrUrl.length >= 2000) {
+      qrUrl = "";
+      error = i18next.t("general:QR code is too large");
+    }
+
+    return {qrUrl, error};
+  }
+
+  renderQrCode() {
+    const {qrUrl, error} = this.getQrUrl();
+
+    if (error) {
+      return <Alert message={error} type="error" showIcon />;
+    } else {
+      return (
+        <QRCode
+          value={qrUrl}
+          icon={this.state.icon}
+          errorLevel="M"
+          size={230}
+          bordered={false}
+        />
+      );
+    }
+  }
+
   renderTable(table) {
     const columns = [
       {
