@@ -60,6 +60,11 @@ type SamlItem struct {
 	Value      string `json:"value"`
 }
 
+type JwtItem struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 type Application struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -107,6 +112,7 @@ type Application struct {
 	TokenFormat             string     `xorm:"varchar(100)" json:"tokenFormat"`
 	TokenSigningMethod      string     `xorm:"varchar(100)" json:"tokenSigningMethod"`
 	TokenFields             []string   `xorm:"varchar(1000)" json:"tokenFields"`
+	TokenAttributes         []*JwtItem `xorm:"mediumtext" json:"tokenAttributes"`
 	ExpireInHours           int        `json:"expireInHours"`
 	RefreshExpireInHours    int        `json:"refreshExpireInHours"`
 	SignupUrl               string     `xorm:"varchar(200)" json:"signupUrl"`
@@ -263,6 +269,14 @@ func extendApplicationWithSigninItems(application *Application) (err error) {
 			Name:        "Password",
 			Visible:     true,
 			CustomCss:   ".login-password {}\n.login-password-input{}",
+			Placeholder: "",
+			Rule:        "None",
+		}
+		application.SigninItems = append(application.SigninItems, signinItem)
+		signinItem = &SigninItem{
+			Name:        "Verification code",
+			Visible:     true,
+			CustomCss:   ".verification-code {}\n.verification-code-input{}",
 			Placeholder: "",
 			Rule:        "None",
 		}
@@ -551,7 +565,6 @@ func GetMaskedApplication(application *Application, userId string) *Application 
 	application.Providers = providerItems
 
 	application.GrantTypes = nil
-	application.Tags = nil
 	application.RedirectUris = nil
 	application.TokenFormat = "***"
 	application.TokenFields = nil
@@ -627,11 +640,15 @@ func GetAllowedApplications(applications []*Application, userId string, lang str
 	return res, nil
 }
 
-func UpdateApplication(id string, application *Application) (bool, error) {
+func UpdateApplication(id string, application *Application, isGlobalAdmin bool) (bool, error) {
 	owner, name := util.GetOwnerAndNameFromId(id)
 	oldApplication, err := getApplication(owner, name)
 	if oldApplication == nil {
 		return false, err
+	}
+
+	if !isGlobalAdmin && oldApplication.Organization != application.Organization {
+		return false, fmt.Errorf("auth:Unauthorized operation")
 	}
 
 	if name == "app-built-in" {
@@ -710,7 +727,7 @@ func AddApplication(application *Application) (bool, error) {
 }
 
 func deleteApplication(application *Application) (bool, error) {
-	affected, err := ormer.Engine.ID(core.PK{application.Owner, application.Name}).Delete(&Application{})
+	affected, err := ormer.Engine.ID(core.PK{application.Owner, application.Name}).Where("organization = ?", application.Organization).Delete(&Application{})
 	if err != nil {
 		return false, err
 	}

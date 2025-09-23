@@ -45,7 +45,7 @@ type UserShort struct {
 
 	Id          string `xorm:"varchar(100) index" json:"id"`
 	DisplayName string `xorm:"varchar(100)" json:"displayName"`
-	Avatar      string `xorm:"varchar(500)" json:"avatar"`
+	Avatar      string `xorm:"varchar(1500)" json:"avatar"`
 	Email       string `xorm:"varchar(100) index" json:"email"`
 	Phone       string `xorm:"varchar(100) index" json:"phone"`
 }
@@ -56,7 +56,7 @@ type UserStandard struct {
 
 	Id          string `xorm:"varchar(100) index" json:"id"`
 	DisplayName string `xorm:"varchar(100)" json:"name,omitempty"`
-	Avatar      string `xorm:"varchar(500)" json:"picture,omitempty"`
+	Avatar      string `xorm:"varchar(1500)" json:"picture,omitempty"`
 	Email       string `xorm:"varchar(100) index" json:"email,omitempty"`
 	Phone       string `xorm:"varchar(100) index" json:"phone,omitempty"`
 }
@@ -76,9 +76,9 @@ type UserWithoutThirdIdp struct {
 	DisplayName       string   `xorm:"varchar(100)" json:"displayName"`
 	FirstName         string   `xorm:"varchar(100)" json:"firstName"`
 	LastName          string   `xorm:"varchar(100)" json:"lastName"`
-	Avatar            string   `xorm:"varchar(500)" json:"avatar"`
+	Avatar            string   `xorm:"varchar(1500)" json:"avatar"`
 	AvatarType        string   `xorm:"varchar(100)" json:"avatarType"`
-	PermanentAvatar   string   `xorm:"varchar(500)" json:"permanentAvatar"`
+	PermanentAvatar   string   `xorm:"varchar(1500)" json:"permanentAvatar"`
 	Email             string   `xorm:"varchar(100) index" json:"email"`
 	EmailVerified     bool     `json:"emailVerified"`
 	Phone             string   `xorm:"varchar(100) index" json:"phone"`
@@ -330,7 +330,7 @@ func getClaimsWithoutThirdIdp(claims Claims) ClaimsWithoutThirdIdp {
 	return res
 }
 
-func getClaimsCustom(claims Claims, tokenField []string) jwt.MapClaims {
+func getClaimsCustom(claims Claims, tokenField []string, tokenAttributes []*JwtItem) jwt.MapClaims {
 	res := make(jwt.MapClaims)
 
 	userValue := reflect.ValueOf(claims.User).Elem()
@@ -382,6 +382,16 @@ func getClaimsCustom(claims Claims, tokenField []string) jwt.MapClaims {
 				newfield := util.SnakeToCamel(util.CamelToSnakeCase(field))
 				res[newfield] = userField.Interface()
 			}
+		}
+	}
+
+	for _, item := range tokenAttributes {
+		valueList := replaceAttributeValue(claims.User, item.Value)
+
+		if len(valueList) == 1 {
+			res[item.Name] = valueList[0]
+		} else {
+			res[item.Name] = valueList
 		}
 	}
 
@@ -497,10 +507,10 @@ func generateJwtToken(application *Application, user *User, provider string, sig
 		claimsShort.TokenType = "refresh-token"
 		refreshToken = jwt.NewWithClaims(jwtMethod, claimsShort)
 	} else if application.TokenFormat == "JWT-Custom" {
-		claimsCustom := getClaimsCustom(claims, application.TokenFields)
+		claimsCustom := getClaimsCustom(claims, application.TokenFields, application.TokenAttributes)
 
 		token = jwt.NewWithClaims(jwtMethod, claimsCustom)
-		refreshClaims := getClaimsCustom(claims, application.TokenFields)
+		refreshClaims := getClaimsCustom(claims, application.TokenFields, application.TokenAttributes)
 		refreshClaims["exp"] = jwt.NewNumericDate(refreshExpireTime)
 		refreshClaims["TokenType"] = "refresh-token"
 		refreshToken = jwt.NewWithClaims(jwtMethod, refreshClaims)
